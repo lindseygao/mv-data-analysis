@@ -45,6 +45,52 @@ pca_main_explore_plot <- mainPanel(
   plotlyOutput(outputId = "pc_plot")
 )
 
+############### MDS Panel UI #############
+dist_dropOptions <- selectInput(
+  inputId = "dist_method",
+  label = "Method for calculating distances",
+  choices = dist_options,
+  selected = "euclidean"
+)
+
+df_options <- selectInput(
+  inputId = "df_option",
+  label = "Data frame for calculating distances",
+  choices = df_choices,
+  selected = "num_all"
+)
+
+c_MDS_x <- selectInput(
+  inputId = "cMDS_x_choices",
+  label = "Choices for x axis",
+  choices = find_cMDS_xy_choices(find_cMDS("num_all", "euclidean"))
+)
+
+c_MDS_y <- selectInput(
+  inputId = "cMDS_y_choices",
+  label = "Choices for y axis",
+  choices = find_cMDS_xy_choices(find_cMDS("num_all", "euclidean"))
+)
+
+cMDS_plot <- mainPanel(
+  "Classical MDS Plot",
+  # plotlyOutput()
+)
+
+mds_tabPanel <- tabPanel(
+  "MDS",
+  sidebarLayout(
+    sidebarPanel(
+      # put controls here
+      dist_dropOptions,
+      df_options,
+      c_MDS_x,
+      c_MDS_y
+    ),
+    cMDS_plot
+  )
+)
+
 pca_tab_panel <- tabPanel(
   "PCA",
   sidebarLayout(
@@ -63,5 +109,6 @@ pca_tab_panel <- tabPanel(
 
 ui <- navbarPage(
   "Multivariate Data Analysis Methods",
-  pca_tab_panel
+  pca_tab_panel,
+  mds_tabPanel
 )

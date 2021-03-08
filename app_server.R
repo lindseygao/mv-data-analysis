@@ -7,13 +7,18 @@ library(RColorBrewer)
 all_ord_df <- read.csv("ordinal_df.csv")
 ratio_df <- read.csv("ratio_df.csv")
 sm_ord_df <- read.csv("sm_ordinal_df.csv")
-
 all_df <- read.csv("all_df.csv") # initial main data frame
+
 num_all <- all_df[, -1:-2] # main df w/ only num values to use analysis functions
+num_all_ord <- all_ord_df[,-1:-2]
+# num_sm_ord <- sm_ord_df[,-1:-2]
+num_ratio <- ratio_df[-1:-2]
+
+
 
 ### Data frames for widgets ###
 country_names <- all_df$Country_Standard # list of all country names
-all_var <- names(Filter(is.numeric, all_df)[, -1]) # list of feature names of `all_df`
+all_var <- names(Filter(is.numeric, num_all)) # list of feature names of `num_all`
 
 
 ############################ Exploratory PCA Script ################################
@@ -150,6 +155,39 @@ find_pc_options <- function(PCs) {
 
 ########################### MDS Script ###############################
 
+######## cMDS ########
+df_choices <- c("Data frame containing all features" = "num_all",
+                "Data frame containing all ordinal features" = "num_all_ord",
+                "Data frame containing all ratio variables" = "num_ratio")
+map_df_choices <- list("num_all" = num_all, "num_all_ord" = num_all_ord, "num_ratio" = num_ratio)
+df <- map_df_choices[["num_all"]]
+
+
+# Returns the initial mds df object from using cmdscale()
+# `df`: data frame to perform MDS
+# `dist_method`: (string) declaring method for calculating distances (ex: "euclidean")
+# `dim`: (int) max dimension of space to represent the data (1 <= dim <= # columns(df) - 1)
+find_cMDS <- function(df, dist_method) {
+  df <- map_df_choices[[df]]
+  dist_df <- dist(df, method = dist_method)
+  c_mds <- cmdscale(dist_df, k = 10, eig = T) # includes eigenvalues
+}
+
+dist_options <- c("euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski")
+
+find_cMDS_xy_choices <- function(c_mds) {
+  choices <- names(c_mds$points)
+}
+
+plot_cMDS <- function(c_mds, x_coord, y_coord) {
+  dis_points <- as.data.frame(c_mds$points) # rows give the coordinates of the points chosen to represent dissimilarities
+  plot <- ggplot(data = dis_points, mapping = aes_string(x = x_coord, y = coord, text = country_names)) + 
+    geom_point()
+  ggplotly(plot, tooltip = "text")
+}
+
+
+################### Server #####################3 
 server <- function(input, output, session) {
   ############# PCA ###############
   output$pc_plot <- renderPlotly({ # PCA plot
@@ -177,6 +215,21 @@ server <- function(input, output, session) {
       session,
       inputId = "pc_y",
       choices = options_by_summary(summary_by(input$PC_limit_range, input$limit_pc_way))
+    )
+  })
+  # output$cMDS_plot <- renderPlotly({
+  #   plot <- graph_
+  # })
+  observe({req(input$dist_method, input$df_option)
+    updateSelectInput(
+      session,
+      inputId = "cMDS_x_choices",
+      choices = find_cMDS_xy_choices(find_cMDS(input$df_option, input$dist_method))
+    )
+    updateSelectInput(
+      session,
+      inputId = "cMDS_y_choices",
+      choices = find_cMDS_xy_choices(find_cMDS(input$df_option, input$dist_method))
     )
   })
   

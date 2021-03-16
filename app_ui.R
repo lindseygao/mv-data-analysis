@@ -36,59 +36,13 @@ pc_choices_y <- selectInput(
 pc_explore_var <- selectInput(
   inputId = "pc_color",
   label = "Choose variable to color",
-  choices = all_var,
+  choices = var_options,
   selected = "POLITY"
 )
 
 pca_main_explore_plot <- mainPanel(
   "PCA Plot",
   plotlyOutput(outputId = "pc_plot")
-)
-
-############### MDS Panel UI #############
-dist_dropOptions <- selectInput(
-  inputId = "dist_method",
-  label = "Method for calculating distances",
-  choices = dist_options,
-  selected = "euclidean"
-)
-
-df_options <- selectInput(
-  inputId = "df_option",
-  label = "Data frame for calculating distances",
-  choices = df_choices,
-  selected = "num_all"
-)
-
-c_MDS_x <- selectInput(
-  inputId = "cMDS_x_choices",
-  label = "Choices for x axis",
-  choices = find_cMDS_xy_choices(find_cMDS("num_all", "euclidean"))
-)
-
-c_MDS_y <- selectInput(
-  inputId = "cMDS_y_choices",
-  label = "Choices for y axis",
-  choices = find_cMDS_xy_choices(find_cMDS("num_all", "euclidean"))
-)
-
-cMDS_plot <- mainPanel(
-  "Classical MDS Plot",
-  # plotlyOutput()
-)
-
-mds_tabPanel <- tabPanel(
-  "MDS",
-  sidebarLayout(
-    sidebarPanel(
-      # put controls here
-      dist_dropOptions,
-      df_options,
-      c_MDS_x,
-      c_MDS_y
-    ),
-    cMDS_plot
-  )
 )
 
 pca_tab_panel <- tabPanel(
@@ -106,9 +60,157 @@ pca_tab_panel <- tabPanel(
   )
 )
 
+############### MDS Panel UI #############
+dist_dropOptions <- selectInput(
+  inputId = "dist_method",
+  label = "Distance Method for cMDS",
+  choices = dist_options,
+  selected = "euclidean"
+)
+
+df_options <- selectInput(
+  inputId = "df_option",
+  label = "Data Frame for cMDS",
+  choices = df_choices,
+  selected = "num_all"
+)
+
+nMDS_dist <- selectInput(
+  inputId = "iso_dist",
+  label = "Distance Method for nMDS",
+  choices = dist_options,
+  selected = "euclidean"
+)
+
+nMDS_df <- selectInput(
+  inputId = "iso_df",
+  label = "Data Frame for nMDS",
+  choices = df_choices,
+  selected = "num_all"
+)
+
+MDS_plots <- mainPanel(
+  h3("Classical MDS Plot"),
+  plotlyOutput(outputId = "cMDS_plot"),
+  h3("Non-metric MDS Plot (Kruskal)"),
+  plotlyOutput(outputId = "nMDS_plot")
+)
+
+mds_tabPanel <- tabPanel(
+  "MDS",
+  sidebarLayout(
+    sidebarPanel(
+      # cMDS controls
+      dist_dropOptions,
+      df_options,
+      # nMDS controls
+      nMDS_dist,
+      nMDS_df
+    ),
+    MDS_plots
+  )
+)
+
+################### K-Means Cluster Analysis UI #######################
+km_cMDS_dist <- selectInput(
+  inputId = "km_cMDS_dist",
+  label = "Distance Method for cMDS",
+  choices = dist_options,
+  selected = "euclidean"
+)
+
+km_nMDS_dist <- selectInput(
+  inputId = "km_nMDS_dist",
+  label = "Distance Method for nMDS",
+  choices = dist_options,
+  selected = "euclidean"
+)
+
+km_plots <- mainPanel(
+  h3("Clusters on Principal Component Axes"),
+  plotlyOutput(outputId = "km_pc_plot"),
+  h3("Clusters on Classical MDS Axes"),
+  plotlyOutput(outputId = "km_cMDS_plot"),
+  h3("Clusters on Non-Metric MDS Axes"),
+  plotlyOutput(outputId = "km_nMDS_plot")
+)
+
+km_k_selection <- radioButtons(
+  inputId = "k_num",
+  label = "Number of Clusters for K-Means",
+  choices = list(2,3),
+  selected = 2
+)
+
+km_tabPanel <- tabPanel(
+  "K-Means Clustering",
+  sidebarLayout(
+    sidebarPanel(
+      km_k_selection,
+      km_cMDS_dist,
+      km_nMDS_dist
+    ),
+    km_plots
+  )
+)
+
+
+################### Model-based Cluster Analysis UI ###################
+mc_cMDS_dist <- selectInput(
+  inputId = "mc_cMDS_dist",
+  label = "Distance Method for cMDS",
+  choices = dist_options,
+  selected = "euclidean"
+)
+
+mc_nMDS_dist <- selectInput(
+  inputId = "mc_nMDS_dist",
+  label = "Distance Method for nMDS",
+  choices = dist_options,
+  selected = "euclidean"
+)
+
+mclust_plots <- mainPanel(
+  h3("Clusters on Principal Component Axes"),
+  plotlyOutput(outputId = "mc_pc_plot"),
+  h3("Clusters on Classical MDS Axes"),
+  plotlyOutput(outputId = "mc_cMDS_plot"),
+  h3("Clusters on Non-Metric MDS Axes"),
+  plotlyOutput(outputId = "mc_nMDS_plot")
+)
+
+
+
+mclust_tabPanel <- tabPanel(
+  "Model-Based Clustering",
+  sidebarLayout(
+    sidebarPanel(
+      mc_cMDS_dist,
+      mc_nMDS_dist
+    ),
+    mclust_plots
+  )
+)
+
 
 ui <- navbarPage(
   "Multivariate Data Analysis Methods",
   pca_tab_panel,
-  mds_tabPanel
+  mds_tabPanel,
+  km_tabPanel,
+  mclust_tabPanel
 )
+
+
+
+# c_MDS_x <- selectInput(
+#   inputId = "cMDS_x_choices",
+#   label = "Choices for x axis",
+#   choices = find_cMDS_xy_choices(find_cMDS("num_all", "euclidean"))
+# )
+# 
+# c_MDS_y <- selectInput(
+#   inputId = "cMDS_y_choices",
+#   label = "Choices for y axis",
+#   choices = find_cMDS_xy_choices(find_cMDS("num_all", "euclidean"))
+# )

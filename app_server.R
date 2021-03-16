@@ -4,6 +4,10 @@ library(tidyverse)
 library(stats) # for pca
 library(plotly)
 library(RColorBrewer)
+library(MASS) # for isoMDS() - kruskal's nMDS
+library(caret)
+library(plotly)
+library(mclust)
 all_ord_df <- read.csv("ordinal_df.csv")
 ratio_df <- read.csv("ratio_df.csv")
 sm_ord_df <- read.csv("sm_ordinal_df.csv")
@@ -18,8 +22,16 @@ num_ratio <- ratio_df[-1:-2]
 
 ### Data frames for widgets ###
 country_names <- all_df$Country_Standard # list of all country names
-all_var <- names(Filter(is.numeric, num_all)) # list of feature names of `num_all`
+# all_var <- names(Filter(is.numeric, num_all)) # list of feature names of `num_all`
+max_pc1 <- as.data.frame(abs(pca$rotation)) %>%
+  dplyr::arrange(-PC1) %>%
+  head(20) %>% 
+  row.names() %>% 
+  as.list()
 
+var_options <- max_pc1[-c(12,19)] %>% unlist()
+additional_var <- c("POLITY", "PARTICIP", "CO2GDP", "ISO14", "POPGRTH", "DAIRY", "MEATS")
+var_options <- c(var_options, additional_var) %>% sort()
 
 ############################ Exploratory PCA Script ################################
 pca <- prcomp(num_all, scale. = TRUE, tol = .05)
@@ -145,7 +157,6 @@ graph_PCs <- function(PCs, PC_x, PC_y, explore_var) {
   pc_plotly <- ggplotly(pc_plot, tooltip = "text")
 }
 
-# init_graph <- graph_PCs(init_PCs, "PC1", "PC2", "POLITY")
 # Returns a vector of principal component options for a given df of PCs
 # `PCs`: df of PCs
 # Later used for the drop down options
@@ -164,7 +175,7 @@ df <- map_df_choices[["num_all"]]
 
 
 # Returns the initial mds df object from using cmdscale()
-# `df`: data frame to perform MDS
+# `df`: string representing the name of data frame to perform MDS
 # `dist_method`: (string) declaring method for calculating distances (ex: "euclidean")
 # `dim`: (int) max dimension of space to represent the data (1 <= dim <= # columns(df) - 1)
 find_cMDS <- function(df, dist_method) {
@@ -175,17 +186,94 @@ find_cMDS <- function(df, dist_method) {
 
 dist_options <- c("euclidean", "maximum", "manhattan", "canberra", "binary", "minkowski")
 
-find_cMDS_xy_choices <- function(c_mds) {
-  choices <- names(c_mds$points)
-}
+# find_cMDS_xy_choices <- function(c_mds) {
+#   choices <- names(c_mds$points)
+# }
 
-plot_cMDS <- function(c_mds, x_coord, y_coord) {
+plot_cMDS <- function(c_mds) {
   dis_points <- as.data.frame(c_mds$points) # rows give the coordinates of the points chosen to represent dissimilarities
-  plot <- ggplot(data = dis_points, mapping = aes_string(x = x_coord, y = coord, text = country_names)) + 
+  plot <- ggplot(data = dis_points, mapping = aes(x = V1, y = V2, text = country_names)) + 
     geom_point()
   ggplotly(plot, tooltip = "text")
 }
 
+###### nMDS ######
+find_nMDS <- function(df, dist_method) {
+  df <- map_df_choices[[df]]
+  dist_df <- dist(df, method = dist_method)
+  isoMDS <- isoMDS(dist_df, k = 2, maxit = 1000, trace = F, tol = 1e-3, p =2)
+}
+
+plot_isoMDS <- function(isoMDS) {
+  # df <- map_df_choices[[df]]
+  # dist_df <- dist(df, method = dist_method)
+  # print(dist_df)
+  iso_points <- as.data.frame(isoMDS$points)
+  plot <- ggplot(iso_points, aes(x =V1, y = V2, text = country_names)) + 
+    geom_point()
+  ggplotly(plot, tooltip = "text")
+}
+
+####################### K-means Clustering Script ############################
+##### K means with all variables data frame #####
+
+# standardize each variable by its range
+rge <- sapply(num_all, function(x) diff(range(x)))
+num_all_s <- sweep(num_all, 2, rge, FUN = "/")
+
+find_km_sol <- function(k) {
+  km_sol <- kmeans(num_all_s, centers = k)
+}
+
+plot_km_pc <- function(km_object) {
+  km_pc_plot <- ggplot(data = pc, mapping = aes(x = PC1, y = PC2, color = km_object$cluster, text = country_names)) + 
+    geom_point(alpha = .5)
+  ggplotly(km_pc_plot, tooltip = "text")
+}
+
+
+# Plotting cluster results against cMDS 
+plot_km_cMDS <- function(km_obj, dist_method) {
+  cMDS_obj <- find_cMDS("num_all", dist_method = dist_method)
+  points <- as.data.frame(cMDS_obj$points)
+  km_cMDS_plot <- ggplot(data = points, mapping = aes(x = V1,  y= V2, color = km_obj$cluster, text = country_names)) + 
+    geom_point(alpha = .5)
+  ggplotly(km_cMDS_plot, tooltip = "text")
+}
+
+# Plotting cluster results against nMDS
+plot_km_nMDS <- function(km_obj, dist_method) {
+  nMDS_obj <- find_nMDS("num_all", dist_method = dist_method)
+  points <- as.data.frame(nMDS_obj$points)
+  km_nMDS_plot <- ggplot(data = points, mapping = aes(x = V1, y = V2, color = km_obj$cluster, text = country_names)) +
+    geom_point(alpha = .5)
+  ggplotly(km_nMDS_plot, tooltip = "text")
+}
+
+################### Model Based Clustering Script ###############
+mc <- Mclust(num_ratio, 14)
+
+plot_mclust_pc <- function() {
+  mc_pc_plot <- ggplot(data = pc, mapping = aes(x = PC1, y = PC2, color = as.factor(mc$classification), text = country_names)) + 
+    geom_point(alpha = .5)
+  ggplotly(mc_pc_plot, tooltip = "text")
+}
+
+plot_mclust_cMDS <- function(dist_method) {
+  cMDS_obj <- find_cMDS("num_all", dist_method = dist_method)
+  points <- as.data.frame(cMDS_obj$points)
+  mc_cMDS_plot <- ggplot(data = points, mapping = aes(x = V1, y = V2, color = as.factor(mc$classification), text = country_names)) +
+    geom_point(alpha = .5)
+  ggplotly(mc_cMDS_plot, tooltip = "text")
+}
+
+plot_mclust_nMDS <- function(dist_method) {
+  nMDS_obj <- find_nMDS("num_all", dist_method = dist_method)
+  points <- as.data.frame(nMDS_obj$points)
+  mc_nMDS_plot <- ggplot(data = points, mapping = aes(x = V1, y = V2, color = as.factor(mc$classification), text = country_names)) +
+    geom_point(alpha = .5)
+  ggplotly(mc_nMDS_plot, tooltip = "text")
+}
 
 ################### Server #####################3 
 server <- function(input, output, session) {
@@ -217,22 +305,70 @@ server <- function(input, output, session) {
       choices = options_by_summary(summary_by(input$PC_limit_range, input$limit_pc_way))
     )
   })
-  # output$cMDS_plot <- renderPlotly({
-  #   plot <- graph_
-  # })
-  observe({req(input$dist_method, input$df_option)
-    updateSelectInput(
-      session,
-      inputId = "cMDS_x_choices",
-      choices = find_cMDS_xy_choices(find_cMDS(input$df_option, input$dist_method))
-    )
-    updateSelectInput(
-      session,
-      inputId = "cMDS_y_choices",
-      choices = find_cMDS_xy_choices(find_cMDS(input$df_option, input$dist_method))
-    )
+  ############### MDS ###############
+  output$cMDS_plot <- renderPlotly({
+    plot <- plot_cMDS(find_cMDS(input$df_option, input$dist_method))
+    plot
   })
   
+  observeEvent(input$iso_dist, {
+    if (input$iso_dist == "binary") {
+      updateSelectInput(
+        session,
+        inputId = "iso_df",
+        choices = df_choices[-2]
+      )
+    } else {
+      updateSelectInput(
+        session,
+        inputId = "iso_df",
+        choices = df_choices
+      )
+    }
+  })
+  output$nMDS_plot <- renderPlotly({
+    plot <- plot_isoMDS(find_nMDS(input$iso_df, input$iso_dist))
+    plot
+  })
+  ############### K-Means Plots ############
+  output$km_pc_plot <- renderPlotly({
+    plot <- plot_km_pc(find_km_sol(input$k_num))
+    plot
+  })
+  output$km_cMDS_plot <- renderPlotly({
+    plot <- plot_km_cMDS(find_km_sol(input$k_num), input$km_cMDS_dist)
+    plot
+  })
+  output$km_nMDS_plot <- renderPlotly({
+    plot <- plot_km_nMDS(find_km_sol(input$k_num), input$km_nMDS_dist)
+    plot
+  })
   
+  ############### Mclust Plots #############
+  output$mc_pc_plot <- renderPlotly({
+    plot <- plot_mclust_pc()
+    plot
+  })
+  output$mc_cMDS_plot <- renderPlotly({
+    plot <- plot_mclust_cMDS(input$mc_cMDS_dist)
+    plot
+  })
+  output$mc_nMDS_plot <- renderPlotly({
+    plot <- plot_mclust_nMDS(input$mc_nMDS_dist)
+    plot
+  })
 }
 
+
+# observe({req(input$dist_method, input$df_option)
+#   updateSelectInput(
+#     session,
+#     inputId = "cMDS_x_choices",
+#     choices = find_cMDS_xy_choices(find_cMDS(input$df_option, input$dist_method))
+#   )
+#   updateSelectInput(
+#     session,
+#     inputId = "cMDS_y_choices",
+#     choices = find_cMDS_xy_choices(find_cMDS(input$df_option, input$dist_method))
+#   )
+# })

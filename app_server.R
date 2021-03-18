@@ -8,6 +8,7 @@ library(MASS) # for isoMDS() - kruskal's nMDS
 library(caret)
 library(plotly)
 library(mclust)
+library(ecodist)
 all_ord_df <- read.csv("ordinal_df.csv")
 ratio_df <- read.csv("ratio_df.csv")
 sm_ord_df <- read.csv("sm_ordinal_df.csv")

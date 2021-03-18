@@ -153,7 +153,9 @@ graph_PCs <- function(PCs, PC_x, PC_y, explore_var) {
   PCs[[explore_var]] <- all_df[[explore_var]]
   pc_plot <- ggplot(data = PCs, mapping = aes_string(x = PC_x, y = PC_y, color = explore_var, text = "country")) + 
     geom_point() +
-    scale_color_gradientn(colors = c("red", "orange", "yellow", "green", "blue"))
+    scale_color_gradientn(colors = c("red", "orange", "yellow", "green", "blue")) +
+    xlab("PC Dim 1") +
+    ylab("PC Dim 2")
   pc_plotly <- ggplotly(pc_plot, tooltip = "text")
 }
 
@@ -193,7 +195,9 @@ dist_options <- c("euclidean", "maximum", "manhattan", "canberra", "binary", "mi
 plot_cMDS <- function(c_mds) {
   dis_points <- as.data.frame(c_mds$points) # rows give the coordinates of the points chosen to represent dissimilarities
   plot <- ggplot(data = dis_points, mapping = aes(x = V1, y = V2, text = country_names)) + 
-    geom_point()
+    geom_point() +
+    xlab("Classical MDS Dim 1") +
+    ylab("Classical MDS Dim 2")
   ggplotly(plot, tooltip = "text")
 }
 
@@ -201,16 +205,18 @@ plot_cMDS <- function(c_mds) {
 find_nMDS <- function(df, dist_method) {
   df <- map_df_choices[[df]]
   dist_df <- dist(df, method = dist_method)
-  isoMDS <- isoMDS(dist_df, k = 2, maxit = 1000, trace = F, tol = 1e-3, p =2)
+  nMDS <- nmds(dist_df, mindim = 2, maxdim = 2, epsilon = 1e-5, maxit = 50)
 }
 
-plot_isoMDS <- function(isoMDS) {
+plot_isoMDS <- function(nMDS) {
   # df <- map_df_choices[[df]]
   # dist_df <- dist(df, method = dist_method)
   # print(dist_df)
-  iso_points <- as.data.frame(isoMDS$points)
-  plot <- ggplot(iso_points, aes(x =V1, y = V2, text = country_names)) + 
-    geom_point()
+  nMDS_points <- as.data.frame(nMDS$conf[[length(nMDS$conf)]])
+  plot <- ggplot(data = nMDS_points, aes(x = V1, y = V2, text = country_names)) + 
+    geom_point() + 
+    xlab("Non-Metric MDS Dim 1") +
+    ylab("Non-Metric MDS Dim 2")
   ggplotly(plot, tooltip = "text")
 }
 
@@ -226,27 +232,34 @@ find_km_sol <- function(k) {
 }
 
 plot_km_pc <- function(km_object) {
-  km_pc_plot <- ggplot(data = pc, mapping = aes(x = PC1, y = PC2, color = km_object$cluster, text = country_names)) + 
-    geom_point(alpha = .5)
+  km_pc_plot <- ggplot(data = pc, mapping = aes(x = PC1, y = PC2, color = as.factor(km_object$cluster), text = country_names)) + 
+    geom_point(alpha = .5) +
+    labs(color = "Cluster") + xlab("PC Dim 1") +
+    ylab("PC Dim 2")
   ggplotly(km_pc_plot, tooltip = "text")
 }
 
 
 # Plotting cluster results against cMDS 
-plot_km_cMDS <- function(km_obj, dist_method) {
+plot_km_cMDS <- function(km_object, dist_method) {
   cMDS_obj <- find_cMDS("num_all", dist_method = dist_method)
   points <- as.data.frame(cMDS_obj$points)
-  km_cMDS_plot <- ggplot(data = points, mapping = aes(x = V1,  y= V2, color = km_obj$cluster, text = country_names)) + 
-    geom_point(alpha = .5)
+  km_cMDS_plot <- ggplot(data = points, mapping = aes(x = V1,  y= V2, color = as.factor(km_object$cluster), text = country_names)) + 
+    geom_point(alpha = .5) +
+    labs(color = "Cluster") + xlab("Classical MDS Dim 1") +
+    ylab("Classical MDS Dim 2")
   ggplotly(km_cMDS_plot, tooltip = "text")
 }
 
 # Plotting cluster results against nMDS
-plot_km_nMDS <- function(km_obj, dist_method) {
+plot_km_nMDS <- function(km_object, dist_method) {
   nMDS_obj <- find_nMDS("num_all", dist_method = dist_method)
-  points <- as.data.frame(nMDS_obj$points)
-  km_nMDS_plot <- ggplot(data = points, mapping = aes(x = V1, y = V2, color = km_obj$cluster, text = country_names)) +
-    geom_point(alpha = .5)
+  points <- as.data.frame(nMDS_obj$conf[[length(nMDS_obj$conf)]])
+  km_nMDS_plot <- ggplot(data = points, mapping = aes(x = V1, y = V2, color = as.factor(km_object$cluster), text = country_names)) +
+    geom_point(alpha = .5) +
+    labs(color = "Cluster") + 
+    xlab("Non-Metric MDS Dim 1") +
+    ylab("Non-Metric MDS Dim 2")
   ggplotly(km_nMDS_plot, tooltip = "text")
 }
 
@@ -255,7 +268,9 @@ mc <- Mclust(num_ratio, 14)
 
 plot_mclust_pc <- function() {
   mc_pc_plot <- ggplot(data = pc, mapping = aes(x = PC1, y = PC2, color = as.factor(mc$classification), text = country_names)) + 
-    geom_point(alpha = .5)
+    geom_point(alpha = .5) +
+    labs(color = "Cluster") + xlab("PC Dim 1") +
+    ylab("PC Dim 2")
   ggplotly(mc_pc_plot, tooltip = "text")
 }
 
@@ -263,15 +278,19 @@ plot_mclust_cMDS <- function(dist_method) {
   cMDS_obj <- find_cMDS("num_all", dist_method = dist_method)
   points <- as.data.frame(cMDS_obj$points)
   mc_cMDS_plot <- ggplot(data = points, mapping = aes(x = V1, y = V2, color = as.factor(mc$classification), text = country_names)) +
-    geom_point(alpha = .5)
+    geom_point(alpha = .5) + 
+    labs(color = "Cluster") + xlab("Classical MDS Dim 1") +
+    ylab("Classical MDS Dim 2")
   ggplotly(mc_cMDS_plot, tooltip = "text")
 }
 
 plot_mclust_nMDS <- function(dist_method) {
   nMDS_obj <- find_nMDS("num_all", dist_method = dist_method)
-  points <- as.data.frame(nMDS_obj$points)
+  points <- as.data.frame(nMDS_obj$conf[[length(nMDS_obj$conf)]])
   mc_nMDS_plot <- ggplot(data = points, mapping = aes(x = V1, y = V2, color = as.factor(mc$classification), text = country_names)) +
-    geom_point(alpha = .5)
+    geom_point(alpha = .5) + 
+    labs(color = "Cluster") + xlab("Non-Metric MDS Dim 1") +
+    ylab("Non-Metric MDS Dim 2")
   ggplotly(mc_nMDS_plot, tooltip = "text")
 }
 

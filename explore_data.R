@@ -132,15 +132,33 @@ ggplot(data = dis_points, mapping = aes(x = V1,  y= V2)) + geom_point()
 # Plotting V1 against V2 gives an "elbow"
 
 
-####### Non-metric MDS isoMDS() - Kruskal's nMDS #######
+############## Non-metric MDS isoMDS() - Kruskal's nMDS ############
 
 ### nMDS with `all_df`
-all_iso <- isoMDS(dist_df) # 2-D solution using `dist_df` from cMDS
+dist_df <- dist(num_all, method = "euclidean")
+all_iso <- isoMDS(dist_df, k = 2, maxit = 100, tol = 1e-10) # 2-D solution using `dist_df` from cMDS
 all_iso_points <- as.data.frame(all_iso$points)
-all_iso_plot <- ggplot(all_iso_points, aes(x = V1, y = V2, text = country_names)) + geom_point()
+all_iso_plot <- ggplot(as.data.frame(all_iso$points), aes(x = V1, y = V2, text = country_names)) + geom_point()
 ggplotly(all_iso_plot, tooltip = "text")
+all_sh <- Shepard(dist_df, all_iso$points)
+plot(all_sh, pch = ".")
+lines(all_sh$x, all_sh$yf, type = "S")
+x <- all_iso$points[,1]
+y <- all_iso$points[,2]
+plot(x, y, xlab="Coordinate 1", ylab="Coordinate 2",
+     main="Nonmetric MDS", type="n")
+all_sh <- Shepard(num_all[lower.tri(num_all)],
+                     + all_iso$points)
+plot(all_sh, pch = ".", xlab = "Dissimilarity",
+     + ylab = "Distance", xlim = range(all_sh$x),
+     + ylim = range(all_sh$x))
+lines(all_sh$x, all_sh$yf, type = "S")
 
-
+nMDS <- nmds(dist_df, mindim = 2, maxdim = 2, epsilon = 1e-3, maxit = 100)
+nMDS_points <- as.data.frame(nMDS$conf[[length(nMDS$conf)]])
+nMDS_plot <- ggplot(data = nMDS_points, aes(x = V1, y = V2, text = country_names)) + 
+  geom_point()
+ggplotly(nMDS_plot, tooltip = "text")
 ### nMDS with `all_ord_df`
 num_ord <- all_ord_df[,-1:-2]
 ord_dist <- dist(num_ord, method = "euclidean")
